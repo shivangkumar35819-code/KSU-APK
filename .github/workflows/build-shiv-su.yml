@@ -23,6 +23,7 @@ jobs:
         with:
           workspaces: userspace/ksud
           cache-targets: false
+          cache-on-failure: true
       - name: Restore matching original SHIV-SU payloads
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,20 +36,29 @@ jobs:
           curl --fail --location --retry 3 https://github.com/mitschud/DirtyFrag/releases/download/v1.08/DirtyFrag-v1.08.apk -o artifacts/DirtyFrag.apk
           echo 'cf44c1ea9225ad47ccb100f6f5c7bdba3852436d807d3d9300673e19419596de  artifacts/DirtyFrag.apk' | sha256sum -c -
       - name: Set up Android Rust tooling
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
         run: |
           rustup update stable
           rustup target add aarch64-linux-android
-          cargo install cargo-ndk --locked
+          curl --fail --location --retry 3 https://github.com/bbqsrc/cargo-ndk/releases/download/v4.1.2/cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2.tgz -o /tmp/cargo-ndk.tgz
+          echo '9451622c4567e8abb2c8005001855e32901c0b716ccdd3a173a4375fd03426e1  /tmp/cargo-ndk.tgz' | sha256sum -c -
+          mkdir -p /tmp/cargo-ndk-bin
+          tar -xzf /tmp/cargo-ndk.tgz -C /tmp/cargo-ndk-bin
+          find /tmp/cargo-ndk-bin -type f -name 'cargo-ndk*' -executable -exec cp {} "$HOME/.cargo/bin/" \;
+          echo CARGO_NDK_PLATFORM=26 >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$NDK" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=$NDK" >> "$GITHUB_ENV"
       - name: Android compilation check
         working-directory: userspace/ksud
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: cargo ndk -t arm64-v8a -p 26 check
+        run: cargo ndk -t arm64-v8a check
       - name: Android clippy
         working-directory: userspace/ksud
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: cargo ndk -t arm64-v8a -p 26 clippy
+        run: cargo ndk -t arm64-v8a clippy
       - name: Format Rust
         working-directory: userspace/ksud
         run: cargo fmt
@@ -56,7 +66,7 @@ jobs:
         working-directory: userspace/ksud
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: cargo ndk -t arm64-v8a -p 26 build --release
+        run: cargo ndk -t arm64-v8a build --release
       - name: Prepare APKs retaining the original applications
         env:
           NDK: ${{ steps.ndk.outputs.ndk-path }}

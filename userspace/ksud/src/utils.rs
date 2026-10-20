@@ -63,7 +63,7 @@ pub fn ensure_clean_dir(dir: impl AsRef<Path>) -> Result<()> {
     Ok(std::fs::create_dir_all(path)?)
 }
 
-/// Match DirtyFrag's optional read-only protection for system/boot partitions.
+/// Match the reference app's optional read-only protection for system/boot partitions.
 pub fn set_partitions_ro() -> usize {
     use std::os::{fd::AsRawFd, unix::fs::FileTypeExt};
 
@@ -95,7 +95,7 @@ pub fn set_partitions_ro() -> usize {
         }
         let enabled: libc::c_int = 1;
         // BLKROSET reads a live integer; the file descriptor remains open here.
-        if unsafe { libc::ioctl(file.as_raw_fd(), BLKROSET, &enabled) } == 0 {
+        if unsafe { libc::ioctl(file.as_raw_fd(), BLKROSET, &raw const enabled) } == 0 {
             count += 1;
         } else {
             log::warn!(
