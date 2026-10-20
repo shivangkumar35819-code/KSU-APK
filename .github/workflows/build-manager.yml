@@ -36,6 +36,7 @@ on:
       - 'Cargo.lock'
       - 'Cargo.toml'
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   generate-key:
@@ -68,15 +69,23 @@ jobs:
 
           echo "keystore=$(base64 -w 0 pr-key.jks)" >> $GITHUB_OUTPUT
 
+      - name: Prepare repository signing certificate
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+        run: |
+          test -n "$KEYSTORE"
+          echo "$KEYSTORE" | base64 -d > pr-key.jks
+
       - name: Extract certificate hash and size
-        if: github.event_name == 'pull_request'
         id: extract
         env:
-          STORE_PASS: ${{ steps.gen.outputs.keystore_password }}
+          STORE_PASS: ${{ steps.gen.outputs.keystore_password || secrets.KEYSTORE_PASSWORD }}
+          CERT_ALIAS: ${{ github.event_name == 'pull_request' && 'pr-key' || secrets.KEY_ALIAS }}
         run: |
           # Export DER certificate
           keytool -exportcert \
-            -alias pr-key \
+            -alias "$CERT_ALIAS" \
             -keystore pr-key.jks \
             -storepass "$STORE_PASS" \
             -file pr-cert.der
@@ -141,8 +150,8 @@ jobs:
       pack_ksuinit: true
 
   build-manager:
-    needs: [generate-key]
-    if: always() && needs.generate-key.result == 'success'
+    needs: [generate-key, build-ksud]
+    if: always() && needs.generate-key.result == 'success' && needs.build-ksud.result == 'success'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -190,6 +199,21 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+
+      - name: Download built Android daemons
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ksud-*-linux-android
+          path: artifacts
+
+      - name: Install daemons before Gradle
+        run: |
+          for pair in arm64-v8a:aarch64-linux-android x86_64:x86_64-linux-android riscv64:riscv64-linux-android; do
+            abi="${pair%%:*}"
+            target="${pair#*:}"
+            mkdir -p "app/src/main/jniLibs/$abi"
+            cp "$GITHUB_WORKSPACE/artifacts/ksud-$target/ksud" "app/src/main/jniLibs/$abi/libksud.so"
+          done
 
       - name: Build with Gradle
         run: |
