@@ -1,4 +1,4 @@
-name: Sign existing SHIV-SU update
+name: Temporary SHIV-SU UID diagnostic
 on:
   workflow_dispatch:
     inputs:
@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "$KEYSTORE" | base64 -d > key.jks
           tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          for pair in SHIV-SU-existing-update-unsigned.apk:SHIV-SU-updated.apk DirtyFrag-1.08-matching-unsigned.apk:DirtyFrag-1.08-for-SHIV-SU.apk; do
+          for pair in SHIV-SU-diagnostic-unsigned.apk:SHIV-SU-diagnostic.apk; do
             src="${pair%%:*}"
             dst="${pair#*:}"
             "$tools/zipalign" -f -P 16 4 "input/$src" aligned.apk
@@ -40,9 +40,11 @@ jobs:
             "$tools/zipalign" -c -P 16 4 "output/$dst"
             "$tools/aapt2" dump badging "output/$dst" > "output/$dst.badging.txt"
           done
-          grep -F "application-label:'SHIV-SU'" output/SHIV-SU-updated.apk.badging.txt
+          grep -F "application-label:'SHIV-SU'" output/SHIV-SU-diagnostic.apk.badging.txt
+          grep -F 'application-debuggable' output/SHIV-SU-diagnostic.apk.badging.txt
           sha256sum output/*.apk > output/SHA256SUMS.txt
       - uses: actions/upload-artifact@v7
         with:
-          name: SHIV-SU-existing-app-update
+          name: SHIV-SU-UID-diagnostic
           path: output/
+          retention-days: 1
