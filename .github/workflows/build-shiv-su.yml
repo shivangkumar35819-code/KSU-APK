@@ -96,35 +96,19 @@ jobs:
           grep -F "application-label:'SHIV-SU'" /tmp/apk-badging.txt
           sha256sum dist/SHIV-SU-DirtyFrag-compat.apk > dist/SHA256SUMS.txt
 
-      - name: Package matching DirtyFrag 1.08 companion
-        env:
-          STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      - name: Include official DirtyFrag 1.16 companion
         run: |
-          curl --fail --location --retry 3 https://github.com/mitschud/DirtyFrag/releases/download/v1.08/DirtyFrag-v1.08.apk -o /tmp/DirtyFrag-original.apk
-          echo 'cf44c1ea9225ad47ccb100f6f5c7bdba3852436d807d3d9300673e19419596de  /tmp/DirtyFrag-original.apk' | sha256sum -c -
-          python3 - <<'PY'
-          import zipfile
-          from pathlib import Path
-          daemon = Path('artifacts/ksud-aarch64-linux-android/ksud').read_bytes()
-          with zipfile.ZipFile('/tmp/DirtyFrag-original.apk') as src, zipfile.ZipFile('/tmp/DirtyFrag-unsigned.apk', 'w') as dst:
-              for item in src.infolist():
-                  if item.filename.startswith('META-INF/'):
-                      continue
-                  dst.writestr(item, daemon if item.filename == 'assets/ksud' else src.read(item.filename))
-          PY
+          curl --fail --location --retry 3 https://github.com/mitschud/DirtyFrag/releases/download/v1.16/DirtyFrag-v1.16.apk -o dist/DirtyFrag-v1.16-official.apk
+          echo 'fb0f8e253a0d3c15f01e489922c9a42baef5dd9ce7b61cac8ec0660cfde445d3  dist/DirtyFrag-v1.16-official.apk' | sha256sum -c -
           tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          "$tools/zipalign" -f -P 16 4 /tmp/DirtyFrag-unsigned.apk /tmp/DirtyFrag-aligned.apk
-          "$tools/apksigner" sign --ks manager/key.jks --ks-key-alias "$KEY_ALIAS" --ks-pass env:STORE_PASS --key-pass env:KEY_PASS --out dist/DirtyFrag-1.08-SHIV-SU-companion.apk /tmp/DirtyFrag-aligned.apk
-          "$tools/apksigner" verify --verbose --print-certs dist/DirtyFrag-1.08-SHIV-SU-companion.apk
-          sha256sum dist/DirtyFrag-1.08-SHIV-SU-companion.apk >> dist/SHA256SUMS.txt
+          "$tools/apksigner" verify --verbose --print-certs dist/DirtyFrag-v1.16-official.apk
+          sha256sum dist/DirtyFrag-v1.16-official.apk >> dist/SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v7
         with:
           name: SHIV-SU-compat-pair
           path: |
             dist/SHIV-SU-DirtyFrag-compat.apk
-            dist/DirtyFrag-1.08-SHIV-SU-companion.apk
+            dist/DirtyFrag-v1.16-official.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
