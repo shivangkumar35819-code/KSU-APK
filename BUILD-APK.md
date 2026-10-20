@@ -1,6 +1,7 @@
-# KernelSU v3.3.1 APK and LKM build
+# SHIV-SU v3.3.1 APK and LKM build
 
 Based on upstream tag `v3.3.1`, commit `0c0fdb960178fa12d80d6cbcfdcb6ad8be6a865d`.
+App label and the home page title are SHIV-SU.
 Manager features, package name, kernel interfaces, and root policies are unchanged.
 
 The Build Manager workflow builds LKM modules, ksuinit, ksud, and the release APK.
@@ -22,3 +23,7 @@ used with its matching Manager. Keep the official artifacts separate.
 
 CI installs Android ksud binaries in jniLibs before the Manager Gradle build.
 The final repack step embeds the built daemons and signs the completed APK.
+
+For a label-only rebuild, run Build SHIV-SU APK with a Build Manager run ID
+containing all three Android ksud artifacts. Download the SHIV-SU-APK artifact.
+Both Material and Miuix home page titles use the shared app_name resource.
