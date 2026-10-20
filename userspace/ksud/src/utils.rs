@@ -63,6 +63,51 @@ pub fn ensure_clean_dir(dir: impl AsRef<Path>) -> Result<()> {
     Ok(std::fs::create_dir_all(path)?)
 }
 
+/// Match DirtyFrag's optional read-only protection for system/boot partitions.
+pub fn set_partitions_ro() -> usize {
+    use std::os::{fd::AsRawFd, unix::fs::FileTypeExt};
+
+    const BLKROSET: libc::c_int = 0x125d;
+
+    let entries = match std::fs::read_dir("/dev/block/by-name") {
+        std::result::Result::Ok(entries) => entries,
+        Err(error) => {
+            log::warn!("set_partitions_ro: read_dir failed: {error}");
+            return 0;
+        }
+    };
+    let mut count = 0;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !matches!(name.as_ref(), "super" | "misc" | "steady")
+            && !name.ends_with("_a")
+            && !name.ends_with("_b")
+        {
+            continue;
+        }
+        let path = entry.path();
+        let std::result::Result::Ok(file) = File::open(&path) else {
+            continue;
+        };
+        if !file.metadata().is_ok_and(|metadata| metadata.file_type().is_block_device()) {
+            continue;
+        }
+        let enabled: libc::c_int = 1;
+        // BLKROSET reads a live integer; the file descriptor remains open here.
+        if unsafe { libc::ioctl(file.as_raw_fd(), BLKROSET, &enabled) } == 0 {
+            count += 1;
+        } else {
+            log::warn!(
+                "set_partitions_ro: BLKROSET failed for {}: {}",
+                path.display(),
+                std::io::Error::last_os_error()
+            );
+        }
+    }
+    count
+}
+
 pub fn ensure_file_exists<T: AsRef<Path>>(file: T) -> Result<()> {
     match File::options().write(true).create_new(true).open(&file) {
         std::result::Result::Ok(_) => Ok(()),

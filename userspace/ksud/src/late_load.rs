@@ -35,7 +35,12 @@ fn dump_process_info(label: &str) {
     );
 }
 
-pub fn run(package_name: &String, kmi: Option<String>, allow_shell: bool) -> Result<()> {
+pub fn run(
+    package_name: &String,
+    kmi: Option<String>,
+    allow_shell: bool,
+    soft_reboot: bool,
+) -> Result<()> {
     utils::daemonize(false)?;
     info!("late-load command triggered!");
     dump_process_info("late-load start");
@@ -80,6 +85,11 @@ pub fn run(package_name: &String, kmi: Option<String>, allow_shell: bool) -> Res
     }
 
     utils::install(None, None).context("Failed to install ksud")?;
+
+    if soft_reboot {
+        // The soft reboot executes the remaining boot stages itself.
+        return Ok(());
+    }
 
     // 5. Handle module updates
     if let Err(e) = handle_updated_modules() {
