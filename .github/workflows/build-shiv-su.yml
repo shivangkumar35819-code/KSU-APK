@@ -35,7 +35,7 @@ jobs:
             src="${pair%%:*}"
             dst="${pair#*:}"
             "$tools/zipalign" -f -P 16 4 "input/$src" aligned.apk
-            "$tools/apksigner" sign --ks key.jks --ks-key-alias "$KEY_ALIAS" --ks-pass env:STORE_PASS --key-pass env:KEY_PASS --out "output/$dst" aligned.apk
+            "$tools/apksigner" sign --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled false --v4-signing-enabled false --ks key.jks --ks-key-alias "$KEY_ALIAS" --ks-pass env:STORE_PASS --key-pass env:KEY_PASS --out "output/$dst" aligned.apk
             "$tools/apksigner" verify --verbose --print-certs "output/$dst"
             "$tools/zipalign" -c -P 16 4 "output/$dst"
             "$tools/aapt2" dump badging "output/$dst" > "output/$dst.badging.txt"
