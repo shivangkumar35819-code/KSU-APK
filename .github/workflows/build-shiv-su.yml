@@ -1,114 +1,48 @@
-name: Package SHIV-SU compatible pair
-
+name: Sign supplied APK customizations
 on:
   workflow_dispatch:
     inputs:
-      source_run:
-        description: 'Build Manager run containing matching Android ksud artifacts'
+      staging_tag:
         required: true
         type: string
-
 permissions:
   contents: read
-  actions: read
-
 jobs:
-  build:
+  sign:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
-
-      - uses: gradle/actions/setup-gradle@v6
-
-      - name: Download matching Android daemons
-        uses: actions/download-artifact@v8
-        with:
-          pattern: ksud-*-linux-android
-          path: artifacts
-          run-id: ${{ inputs.source_run }}
-          github-token: ${{ github.token }}
-
-      - name: Install daemons before Gradle
+      - name: Download prepared APKs from draft staging release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.staging_tag }}
         run: |
-          for pair in arm64-v8a:aarch64-linux-android x86_64:x86_64-linux-android riscv64:riscv64-linux-android; do
-            abi="${pair%%:*}"
-            target="${pair#*:}"
-            mkdir -p "manager/app/src/main/jniLibs/$abi" "target/$target/release"
-            cp "artifacts/ksud-$target/ksud" "manager/app/src/main/jniLibs/$abi/libksud.so"
-            cp "artifacts/ksud-$target/ksud" "target/$target/release/ksud"
-          done
-
-      - name: Prepare persistent signing identity
+          mkdir input output
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*-unsigned.apk' --dir input
+      - name: Sign and verify original-version APKs
         env:
           KEYSTORE: ${{ secrets.KEYSTORE }}
           STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASS: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "$KEYSTORE" | base64 -d > manager/key.jks
-          {
-            echo "KEYSTORE_FILE=key.jks"
-            echo "KEYSTORE_PASSWORD=$STORE_PASS"
-            echo "KEY_PASSWORD=$KEY_PASS"
-            echo "KEY_ALIAS=$KEY_ALIAS"
-          } >> manager/gradle.properties
-
-      - name: Set explicit compatible build version
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('manager/build.gradle.kts')
-          s = p.read_text().replace('extra["managerVersionCode"] = getVersionCode()', 'extra["managerVersionCode"] = 32685')
-          s = s.replace('extra["managerVersionName"] = getVersionName()', 'extra["managerVersionName"] = "SHIV-SU-compat-08a3b087"')
-          p.write_text(s)
-          PY
-
-      - name: Build SHIV-SU release APK
-        working-directory: manager
-        run: ./gradlew clean assembleRelease
-
-      - name: Repack matching daemons and sign final APK
-        env:
-          STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        run: |
-          python3 repack_apk.py repack -b release -t release \
-            -a arm64-v8a -a x86_64 -a riscv64 \
-            -K manager/key.jks -A "$KEY_ALIAS" \
-            -P "$STORE_PASS" -S "$KEY_PASS" --strip
-          apk=$(find dist -maxdepth 1 -name '*.apk' -print -quit)
-          test -n "$apk"
-          mv "$apk" dist/SHIV-SU-DirtyFrag-compat.apk
-
-      - name: Verify APK signature and label
-        run: |
+          echo "$KEYSTORE" | base64 -d > key.jks
           tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          "$tools/apksigner" verify --verbose --print-certs dist/SHIV-SU-DirtyFrag-compat.apk
-          "$tools/aapt2" dump badging dist/SHIV-SU-DirtyFrag-compat.apk > /tmp/apk-badging.txt
-          grep -F "application-label:'SHIV-SU'" /tmp/apk-badging.txt
-          sha256sum dist/SHIV-SU-DirtyFrag-compat.apk > dist/SHA256SUMS.txt
-
-      - name: Include official DirtyFrag 1.16 companion
-        run: |
-          curl --fail --location --retry 3 https://github.com/mitschud/DirtyFrag/releases/download/v1.16/DirtyFrag-v1.16.apk -o dist/DirtyFrag-v1.16-official.apk
-          echo 'fb0f8e253a0d3c15f01e489922c9a42baef5dd9ce7b61cac8ec0660cfde445d3  dist/DirtyFrag-v1.16-official.apk' | sha256sum -c -
-          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          "$tools/apksigner" verify --verbose --print-certs dist/DirtyFrag-v1.16-official.apk
-          sha256sum dist/DirtyFrag-v1.16-official.apk >> dist/SHA256SUMS.txt
-
+          for pair in SHIV-SU-supplied-unsigned.apk:SHIV-SU-from-your-KernelSU.apk DirtyFrag-1.08-matching-unsigned.apk:DirtyFrag-1.08-for-SHIV-SU.apk; do
+            src="${pair%%:*}"
+            dst="${pair#*:}"
+            "$tools/zipalign" -f -P 16 4 "input/$src" aligned.apk
+            "$tools/apksigner" sign --ks key.jks --ks-key-alias "$KEY_ALIAS" --ks-pass env:STORE_PASS --key-pass env:KEY_PASS --out "output/$dst" aligned.apk
+            "$tools/apksigner" verify --verbose --print-certs "output/$dst"
+            "$tools/zipalign" -c -P 16 4 "output/$dst"
+            "$tools/aapt2" dump badging "output/$dst" > "output/$dst.badging.txt"
+          done
+          grep -F "application-label:'SHIV-SU '" output/SHIV-SU-from-your-KernelSU.apk.badging.txt
+          sha256sum output/*.apk > output/SHA256SUMS.txt
       - uses: actions/upload-artifact@v7
         with:
-          name: SHIV-SU-compat-pair
-          path: |
-            dist/SHIV-SU-DirtyFrag-compat.apk
-            dist/DirtyFrag-v1.16-official.apk
-            dist/SHA256SUMS.txt
-          if-no-files-found: error
+          name: SHIV-SU-your-exact-APKs
+          path: output/
