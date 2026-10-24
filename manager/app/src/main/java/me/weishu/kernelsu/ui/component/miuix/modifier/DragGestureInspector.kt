@@ -9,7 +9,7 @@ import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
-import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.util.fastFirstOrNull
 
 suspend fun PointerInputScope.inspectDragGestures(
@@ -19,18 +19,22 @@ suspend fun PointerInputScope.inspectDragGestures(
     onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit
 ) {
     awaitEachGesture {
-        val down = awaitFirstDown(
-            requireUnconsumed = false,
-            pass = PointerEventPass.Initial,
-        )
+        val initialDown = awaitFirstDown(false, PointerEventPass.Initial)
+
+        val down = awaitFirstDown(false)
 
         onDragStart(down)
-        onDrag(down, Offset.Zero)
-        val upEvent = drag(
-            pointerId = down.id,
-            onDrag = { onDrag(it, it.positionChangeIgnoreConsumed()) },
-        )
-        if (upEvent != null) onDragEnd(upEvent) else onDragCancel()
+        onDrag(initialDown, Offset.Zero)
+        val upEvent =
+            drag(
+                pointerId = initialDown.id,
+                onDrag = { onDrag(it, it.positionChange()) }
+            )
+        if (upEvent == null) {
+            onDragCancel()
+        } else {
+            onDragEnd(upEvent)
+        }
     }
 }
 
@@ -45,6 +49,9 @@ private suspend inline fun AwaitPointerEventScope.drag(
     var pointer = pointerId
     while (true) {
         val change = awaitDragOrUp(pointer) ?: return null
+        if (change.isConsumed) {
+            return null
+        }
         if (change.changedToUpIgnoreConsumed()) {
             return change
         }
@@ -58,7 +65,7 @@ private suspend inline fun AwaitPointerEventScope.awaitDragOrUp(
 ): PointerInputChange? {
     var pointer = pointerId
     while (true) {
-        val event = awaitPointerEvent(PointerEventPass.Initial)
+        val event = awaitPointerEvent()
         val dragEvent = event.changes.fastFirstOrNull { it.id == pointer } ?: return null
         if (dragEvent.changedToUpIgnoreConsumed()) {
             val otherDown = event.changes.fastFirstOrNull { it.pressed }

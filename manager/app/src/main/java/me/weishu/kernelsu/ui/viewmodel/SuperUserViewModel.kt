@@ -177,21 +177,21 @@ class SuperUserViewModel(
         if (text.isEmpty()) return emptyList()
 
         return groups.mapNotNull { group ->
-            val matchedIdentifiers = group.apps.filter {
+            val matchedPackageNames = group.apps.filter {
                 it.label.contains(text, true) ||
-                        it.displayIdentifier.contains(text, true) ||
+                        it.packageName.contains(text, true) ||
                         PinyinUtil.toPinyin(it.label).contains(text, true)
-            }.mapTo(linkedSetOf()) { it.displayIdentifier }
+            }.mapTo(linkedSetOf()) { it.packageName }
 
-            if (matchedIdentifiers.isEmpty()) {
+            if (matchedPackageNames.isEmpty()) {
                 null
             } else {
                 val sortedApps = group.apps.sortedWith(
-                    compareByDescending { it.displayIdentifier in matchedIdentifiers }
+                    compareByDescending { it.packageName in matchedPackageNames }
                 )
                 group.copy(
                     apps = sortedApps,
-                    matchedIdentifiers = matchedIdentifiers,
+                    matchedPackageNames = matchedPackageNames,
                 )
             }
         }
@@ -258,8 +258,6 @@ class SuperUserViewModel(
 
         return list.filter {
             if (it.packageName == ksuApp.packageName) return@filter false
-            // UID 1053 is the single system-wide WebView zygote (primary user only).
-            if (it.isWebViewZygote) return@filter true
             if (it.allowSu || it.hasCustomProfile) {
                 return@filter true
             }
@@ -316,7 +314,7 @@ class SuperUserViewModel(
     private fun sortGroups(groups: List<GroupedApps>, config: AppSortConfig): List<GroupedApps> {
         val collator = Collator.getInstance(Locale.getDefault())
         val base: Comparator<GroupedApps> = when (config.sortType) {
-            AppSortType.PACKAGE_NAME -> compareBy { it.primary.displayIdentifier }
+            AppSortType.PACKAGE_NAME -> compareBy { it.primary.packageName }
             AppSortType.INSTALL_TIME -> compareBy { it.primary.packageInfo.firstInstallTime }
             AppSortType.UPDATE_TIME -> compareBy { it.primary.packageInfo.lastUpdateTime }
             AppSortType.NAME -> Comparator { a, b -> collator.compare(a.primary.label, b.primary.label) }

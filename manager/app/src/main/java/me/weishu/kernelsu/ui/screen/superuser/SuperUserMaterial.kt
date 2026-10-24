@@ -26,8 +26,8 @@ import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +35,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -139,7 +138,7 @@ fun SuperUserPagerMaterial(
 
                             DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
                                 sortEntries.onEachIndexed { index, (type, resId) ->
-                                    SelectableDropdownMenuItem(
+                                    DropdownMenuItem(
                                         text = { Text(stringResource(resId)) },
                                         selected = sortConfig.sortType == type,
                                         selectedLeadingIcon = {
@@ -165,7 +164,7 @@ fun SuperUserPagerMaterial(
                             Spacer(Modifier.height(MenuDefaults.GroupSpacing))
 
                             DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
-                                CheckableDropdownMenuItem(
+                                DropdownMenuItem(
                                     text = { Text(stringResource(R.string.sort_reverse)) },
                                     checked = sortConfig.reversed,
                                     checkedLeadingIcon = {
@@ -203,7 +202,7 @@ fun SuperUserPagerMaterial(
                         ) {
                             val filterCount = if (uiState.userIds.size > 1) 2 else 1
                             DropdownMenuGroup(shapes = MenuDefaults.groupShapes()) {
-                                CheckableDropdownMenuItem(
+                                DropdownMenuItem(
                                     text = { Text(stringResource(R.string.show_system_apps)) },
                                     checked = uiState.showSystemApps,
                                     checkedLeadingIcon = {
@@ -221,7 +220,7 @@ fun SuperUserPagerMaterial(
                                     shapes = MenuDefaults.itemShape(index = 0, count = filterCount),
                                 )
                                 if (uiState.userIds.size > 1) {
-                                    CheckableDropdownMenuItem(
+                                    DropdownMenuItem(
                                         text = { Text(stringResource(R.string.show_only_primary_user_apps)) },
                                         checked = uiState.showOnlyPrimaryUserApps,
                                         checkedLeadingIcon = {
@@ -420,7 +419,7 @@ private fun SearchGroupItem(
                 group.apps.forEach { app ->
                     SimpleAppItem(
                         app = app,
-                        matched = group.matchedIdentifiers.contains(app.displayIdentifier),
+                        matched = group.matchedPackageNames.contains(app.packageName),
                     ) {
                         closeSearch()
                         onOpenProfile(group)
@@ -448,7 +447,7 @@ private fun SimpleAppItem(
             }
         ),
         content = { Text(app.label, overflow = TextOverflow.Ellipsis, maxLines = 1) },
-        supportingContent = { Text(app.displayIdentifier, overflow = TextOverflow.Ellipsis, maxLines = 1) },
+        supportingContent = { Text(app.packageName, overflow = TextOverflow.Ellipsis, maxLines = 1) },
         leadingContent = {
             AppIconImage(
                 packageInfo = app.packageInfo,
@@ -496,7 +495,7 @@ private fun GroupItem(
     val summaryText = if (group.apps.size > 1) {
         stringResource(R.string.group_contains_apps, group.apps.size)
     } else {
-        group.primary.displayIdentifier
+        group.primary.packageName
     }
     SegmentedListItem(
         selected = selected,

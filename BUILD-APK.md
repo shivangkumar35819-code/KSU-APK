@@ -1,29 +1,25 @@
-# SHIV-SU v3.3.1 APK and LKM build
+# SHIV TEST
 
-Based on upstream tag `v3.3.1`, commit `0c0fdb960178fa12d80d6cbcfdcb6ad8be6a865d`.
-App label and the home page title are SHIV-SU.
-Manager features, package name, kernel interfaces, and root policies are unchanged.
+Fresh source base: tiann/KernelSU tag v3.3.0 (932014a).
+App label and both home page titles use SHIV TEST.
 
-The Build Manager workflow builds LKM modules, ksuinit, ksud, and the release APK.
-Download the final installable APK from the `manager` artifact, not `manager-gradle`.
-LKM artifacts are specific to their Android kernel KMI and architecture.
-An APK cannot add LKM support to an incompatible device kernel.
+Run Actions > Build SHIV TEST APK and all LKM > Run workflow on main.
+The repository's persistent signing secrets sign the APK. The same certificate
+hash and size are compiled into every driver using the second accepted
+certificate slot. Signature verification remains enabled.
 
-## Rebuild
+The build covers eight KMI targets: android12-5.10, android13-5.10,
+android13-5.15, android14-5.15, android14-6.1, android15-6.6,
+android16-6.12, and android17-6.18. Each has arm64 and x86_64 LKM builds.
+Both Android daemons embed the complete set of freshly built drivers and
+ksuinit. Desktop daemons are also built for Windows, macOS, and Linux.
 
-Open Actions > Build Manager > Run workflow on main.
-Repository secrets KEYSTORE, KEYSTORE_PASSWORD, KEY_PASSWORD, and KEY_ALIAS
-provide the persistent repository signing identity. The workflow extracts the
-certificate hash and size and passes them to LKM builds so Manager verification
-matches the signed APK. Do not replace these secrets between updates.
+Download SHIV-TEST-APK for the installable APK, or SHIV-TEST-FULL-BUNDLE
+for the APK, 16 modules, 7 daemons, 2 init binaries, public signing certificate,
+verification.json, and SHA256SUMS. No private signing keys are included.
 
-This repository uses its own signing certificate, not tiann's private key.
-Its APK cannot update the official APK in place, and its LKM modules must be
-used with its matching Manager. Keep the official artifacts separate.
-
-CI installs Android ksud binaries in jniLibs before the Manager Gradle build.
-The final repack step embeds the built daemons and signs the completed APK.
-
-For a label-only rebuild, run Build SHIV-SU APK with a Build Manager run ID
-containing all three Android ksud artifacts. Download the SHIV-SU-APK artifact.
-Both Material and Miuix home page titles use the shared app_name resource.
+These are LKM builds for supported GKI kernel interfaces, not universal
+boot.img files or complete GKI kernel images. Historical release drivers
+are not mixed across source versions. Use the module matching the device's
+architecture and KMI. Runtime device testing requires a compatible Android
+device and has not been performed by CI.

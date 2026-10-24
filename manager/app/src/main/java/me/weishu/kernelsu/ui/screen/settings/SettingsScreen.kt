@@ -2,11 +2,6 @@ package me.weishu.kernelsu.ui.screen.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,25 +15,13 @@ import me.weishu.kernelsu.ui.viewmodel.SettingsViewModel
 @Composable
 fun SettingPager(
     navigator: Navigator,
-    bottomInnerPadding: Dp,
-    isCurrentPage: Boolean = true,
+    bottomInnerPadding: Dp
 ) {
     val viewModel = viewModel<SettingsViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val latestIsCurrentPage by rememberUpdatedState(isCurrentPage)
-    val initialResumeHandled = rememberSaveable { mutableStateOf(false) }
-
-    LaunchedEffect(isCurrentPage) {
-        if (isCurrentPage) {
-            viewModel.refresh()
-        }
-    }
 
     LifecycleResumeEffect(Unit) {
-        if (initialResumeHandled.value && latestIsCurrentPage) {
-            viewModel.refresh()
-        }
-        initialResumeHandled.value = true
+        viewModel.refresh()
         onPauseOrDispose { }
     }
 
@@ -52,10 +35,10 @@ fun SettingPager(
         onOpenProfileTemplate = { navigator.push(Route.AppProfileTemplate) },
         onSetSuCompatMode = viewModel::setSuCompatMode,
         onSetKernelUmountEnabled = viewModel::setKernelUmountEnabled,
+        onSetWebViewZygoteUmountEnabled = viewModel::setWebViewZygoteUmountEnabled,
         onSetSelinuxHideEnabled = viewModel::setSelinuxHideEnabled,
         onSetSulogEnabled = viewModel::setSulogEnabled,
         onSetAdbRootEnabled = viewModel::setAdbRootEnabled,
-        onSetShellSuAdbOnlyEnabled = viewModel::setShellSuAdbOnlyEnabled,
         onSetDefaultUmountModules = viewModel::setDefaultUmountModules,
         onSetEnableWebDebugging = viewModel::setEnableWebDebugging,
         onSetAutoJailbreak = viewModel::setAutoJailbreak,

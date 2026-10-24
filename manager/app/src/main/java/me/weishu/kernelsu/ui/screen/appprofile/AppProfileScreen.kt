@@ -52,18 +52,16 @@ fun AppProfileScreen(uid: Int) {
         return
     }
 
-    val packageName = primaryAppInfo.profileKey
+    val packageName = primaryAppInfo.packageName
     val sharedUserId = remember(uid) {
         primaryAppInfo.packageInfo.sharedUserId
             ?: appGroup.apps.firstOrNull { it.packageInfo.sharedUserId != null }?.packageInfo?.sharedUserId
             ?: ""
     }
 
-    val initialProfile = remember(uid, packageName, primaryAppInfo.special) {
-        Natives.getAppProfile(packageName, uid).let {
-            if (primaryAppInfo.special) it.copy(allowSu = false) else it
-        }.also {
-            if (it.allowSu && !primaryAppInfo.special) {
+    val initialProfile = remember(uid, packageName) {
+        Natives.getAppProfile(packageName, uid).also {
+            if (it.allowSu) {
                 it.rules = getSepolicy(packageName)
             }
         }
@@ -109,29 +107,23 @@ fun AppProfileScreen(uid: Int) {
         },
         onProfileChange = { updatedProfile ->
             scope.launch {
-                val profileToSave = if (primaryAppInfo.special) {
-                    updatedProfile.copy(allowSu = false)
-                } else {
-                    updatedProfile
-                }
-                if (profileToSave.allowSu) {
+                if (updatedProfile.allowSu) {
                     if (uid < 2000 && uid != 1000) {
                         showMessage(suNotAllowed)
                         return@launch
                     }
-                    if (!profileToSave.rootUseDefault
-                        && profileToSave.rules.isNotEmpty()
-                        && !primaryAppInfo.special
-                        && !setSepolicy(profileToSave.name, profileToSave.rules)
+                    if (!updatedProfile.rootUseDefault
+                        && updatedProfile.rules.isNotEmpty()
+                        && !setSepolicy(profile.name, updatedProfile.rules)
                     ) {
                         showMessage(failToUpdateSepolicy)
                         return@launch
                     }
                 }
-                if (!Natives.setAppProfile(profileToSave)) {
+                if (!Natives.setAppProfile(updatedProfile)) {
                     showMessage(failToUpdateAppProfile)
                 } else {
-                    profile = profileToSave
+                    profile = updatedProfile
                     if (uiMode == UiMode.Material) {
                         viewModel.loadAppList()
                     }

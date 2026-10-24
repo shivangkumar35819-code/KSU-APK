@@ -26,10 +26,12 @@ fun getGitDescribe(): String {
 }
 
 fun getVersionCode(): Int {
+    providers.gradleProperty("KSU_VERSION_CODE").orNull?.let { return it.toInt() }
     val commitCount = getGitCommitCount()
     return 30000 + commitCount
 }
 
 fun getVersionName(): String {
+    providers.gradleProperty("KSU_VERSION_NAME").orNull?.let { return it }
     return getGitDescribe()
 }
