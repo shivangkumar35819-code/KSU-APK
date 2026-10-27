@@ -11,7 +11,7 @@ jobs:
       size: ${{ steps.cert.outputs.size }}
       hash: ${{ steps.cert.outputs.hash }}
     steps:
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
@@ -80,7 +80,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
